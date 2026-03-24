@@ -1,104 +1,128 @@
-"""Knowledge Growth pipeline — tracks Viking memory and vectordb growth."""
+"""Knowledge Growth — tracks skills, memories, and autoskill sessions from .openclaw."""
 from __future__ import annotations
 
-import json
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .base import Metric, Pipeline
-from .viking_activity import _find_viking_base, _find_queue_db, AGENT_HASH_MAP
 
 if TYPE_CHECKING:
     from oa.core.config import ProjectConfig
 
+DATA_FLOW_EDGES = [
+    {"from": "workspace/skills/", "to": "count_skills.py", "type": "scan"},
+    {"from": "xiaoxia-memory-repo/", "to": "count_memories.py", "type": "scan"},
+    {"from": "workspace/memory/", "to": "count_memories.py", "type": "scan"},
+    {"from": "autoskill/sessions/", "to": "count_autoskill.py", "type": "scan"},
+    {"from": "count_skills.py", "to": "Aggregate", "type": "data"},
+    {"from": "count_memories.py", "to": "Aggregate", "type": "data"},
+    {"from": "count_autoskill.py", "to": "Aggregate", "type": "data"},
+    {"from": "Aggregate", "to": "goal_metrics", "type": "write"},
+]
+NODE_TYPES = {
+    "workspace/skills/": "source",
+    "xiaoxia-memory-repo/": "source",
+    "workspace/memory/": "source",
+    "autoskill/sessions/": "source",
+    "count_skills.py": "script",
+    "count_memories.py": "script",
+    "count_autoskill.py": "script",
+    "Aggregate": "script",
+    "goal_metrics": "db",
+}
+
 
 class KnowledgeGrowthPipeline(Pipeline):
-    """Tracks total memories, daily new memories, and vectordb index size."""
+    """Reads .openclaw/workspace/skills, xiaoxia-memory-repo, autoskill."""
 
     goal_id = "knowledge_growth"
 
     def collect(self, date: str, config: "ProjectConfig") -> list[Metric]:
         from oa.core.tracing import Tracer
         tracer = Tracer(service="knowledge_growth", db_path=config.db_path)
+        oc = config.openclaw_home
 
-        with tracer.span("Knowledge Growth", {"date": date}) as root:
-            viking = _find_viking_base(config.openclaw_home)
-            queue_db = _find_queue_db(config.openclaw_home)
-
+        with tracer.span("Knowledge Growth", {
+            "date": date,
+            "data_flow_edges": DATA_FLOW_EDGES,
+            "node_types": NODE_TYPES,
+        }) as root:
+            total_skills = 0
+            new_skills_today = 0
+            skill_names: list[str] = []
             total_memories = 0
-            today_new = 0
-            per_category = {}
+            new_memories_today = 0
+            mem_by_dir: dict[str, int] = {}
+            autoskill_sessions = 0
 
-            if viking:
-                with tracer.span("Count Memories"):
-                    for scope in ("agent", "user"):
-                        scope_dir = viking / scope
-                        if not scope_dir.exists():
-                            continue
-                        for mf in scope_dir.rglob("mem_*.md"):
-                            total_memories += 1
+            with tracer.span("Count Skills", {
+                "step": "scan", "source": str(oc / "workspace" / "skills"),
+            }) as s1:
+                skills_dir = oc / "workspace" / "skills"
+                if skills_dir.exists():
+                    for sd in skills_dir.iterdir():
+                        if sd.is_dir() and (sd / "SKILL.md").exists():
+                            total_skills += 1
+                            skill_names.append(sd.name)
                             try:
-                                mtime = datetime.fromtimestamp(mf.stat().st_mtime)
+                                mtime = datetime.fromtimestamp(sd.stat().st_mtime)
                                 if mtime.strftime("%Y-%m-%d") == date:
-                                    today_new += 1
+                                    new_skills_today += 1
                             except OSError:
-                                continue
-                            cat = mf.parent.name
-                            per_category[cat] = per_category.get(cat, 0) + 1
+                                pass
+                s1.set_attribute("total_skills", total_skills)
+                s1.set_attribute("new_today", new_skills_today)
+                s1.set_attribute("recent_skills", skill_names[-10:])
 
-            queue_messages = 0
-            if queue_db:
-                with tracer.span("Count Queue Messages"):
-                    try:
-                        db = sqlite3.connect(str(queue_db))
-                        row = db.execute(
-                            "SELECT COUNT(*) FROM queue_messages WHERE timestamp >= ? AND timestamp < ?",
-                            (self._date_to_ts(date), self._date_to_ts(date, next_day=True)),
-                        ).fetchone()
-                        queue_messages = row[0] if row else 0
-                        db.close()
-                    except Exception:
-                        pass
+            with tracer.span("Count Memories", {
+                "step": "scan",
+            }) as s2:
+                mem_dirs = [
+                    oc / "xiaoxia-memory-repo",
+                    oc / "workspace" / "memory",
+                ]
+                for md in mem_dirs:
+                    if not md.exists():
+                        continue
+                    dir_count = 0
+                    for mf in md.rglob("*.md"):
+                        total_memories += 1
+                        dir_count += 1
+                        try:
+                            mtime = datetime.fromtimestamp(mf.stat().st_mtime)
+                            if mtime.strftime("%Y-%m-%d") == date:
+                                new_memories_today += 1
+                        except OSError:
+                            pass
+                    mem_by_dir[md.name] = dir_count
+                s2.set_attribute("total_memories", total_memories)
+                s2.set_attribute("new_today", new_memories_today)
+                s2.set_attribute("by_directory", mem_by_dir)
 
-            vectordb_docs = self._count_vectordb(config.openclaw_home)
+            with tracer.span("Count AutoSkill", {
+                "step": "scan", "source": str(oc / "autoskill"),
+            }) as s3:
+                as_dir = oc / "autoskill" / "embedded_sessions"
+                if as_dir.exists():
+                    autoskill_sessions = sum(1 for _ in as_dir.iterdir() if _.is_dir())
+                sb_dir = oc / "autoskill" / "SkillBank"
+                sb_count = 0
+                if sb_dir.exists():
+                    sb_count = sum(1 for _ in sb_dir.iterdir())
+                s3.set_attribute("embedded_sessions", autoskill_sessions)
+                s3.set_attribute("skill_bank_entries", sb_count)
 
-            root.set_attribute("total_memories", total_memories)
-            root.set_attribute("today_new", today_new)
+            root.set_attribute("skills", total_skills)
+            root.set_attribute("memories", total_memories)
+            root.set_attribute("autoskill", autoskill_sessions)
 
         tracer.flush()
         return [
             Metric("total_memories", total_memories, unit="count",
-                   breakdown={"per_category": per_category}),
-            Metric("daily_new_memories", today_new, unit="count"),
-            Metric("queue_throughput", queue_messages, unit="count"),
-            Metric("vectordb_documents", vectordb_docs, unit="count"),
+                   breakdown={"by_dir": mem_by_dir}),
+            Metric("daily_new_memories", new_memories_today, unit="count"),
+            Metric("queue_throughput", total_skills, unit="count",
+                   breakdown={"new_today": new_skills_today}),
+            Metric("vectordb_documents", autoskill_sessions, unit="count"),
         ]
-
-    def _date_to_ts(self, date: str, next_day: bool = False) -> int:
-        dt = datetime.strptime(date, "%Y-%m-%d")
-        if next_day:
-            from datetime import timedelta
-            dt += timedelta(days=1)
-        return int(dt.timestamp())
-
-    def _count_vectordb(self, openclaw_home: Path) -> int:
-        candidates = [
-            Path("/mnt/d/project/openclaw/data/vectordb/context"),
-            openclaw_home / "data" / "vectordb" / "context",
-            openclaw_home.parent / "data" / "vectordb" / "context",
-        ]
-        for vdb in candidates:
-            meta = vdb / "collection_meta.json"
-            if meta.exists():
-                try:
-                    data = json.loads(meta.read_text(encoding="utf-8"))
-                    return data.get("total_documents", data.get("count", 0))
-                except (json.JSONDecodeError, OSError):
-                    pass
-            if vdb.exists():
-                store = vdb / "store"
-                if store.exists():
-                    return sum(1 for f in store.iterdir() if f.suffix == ".log")
-        return 0

@@ -13,8 +13,6 @@ from typing import Any
 def _get_feishu_credentials() -> tuple[str, str, str] | None:
     """Read Feishu bot credentials from openclaw.json."""
     candidates = [
-        Path("/mnt/d/project/openclaw/openclaw.json"),
-        Path("D:/project/openclaw/openclaw.json"),
         Path.home() / ".openclaw" / "openclaw.json",
     ]
     for c in candidates:

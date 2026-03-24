@@ -211,7 +211,7 @@ function CronReliabilityChart({ cronRuns }: { cronRuns: CronRun[] }) {
     if (run.status === "ok" || run.status === "success") day.success++;
     else if (run.status === "error" || run.status === "failed") day.failed++;
     else if (run.status === "missed") day.missed++;
-    else day.success++; // default to success
+    else day.missed++;
 
     if (!day.jobs.has(run.cron_name)) day.jobs.set(run.cron_name, { success: 0, total: 0 });
     const job = day.jobs.get(run.cron_name)!;
@@ -469,7 +469,7 @@ export function GoalDetailSection({ goal, index, metrics, cronRuns, teamHealth }
   const primary = allMetrics[0];
   const isPercent = primary && (primary[1].unit === "%" || primary[1].unit === "percent");
   const isCronGoal = goal.id.includes("cron");
-  const isTeamGoal = goal.id.includes("team") || goal.id.includes("health");
+  const isTeamGoal = goal.id === "team_health";
 
   return (
     <>

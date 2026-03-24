@@ -5,7 +5,7 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: path.resolve(__dirname, "../src/oa/dashboard"),
+    outDir: "../src/oa/dashboard",
     emptyOutDir: true,
   },
   server: {

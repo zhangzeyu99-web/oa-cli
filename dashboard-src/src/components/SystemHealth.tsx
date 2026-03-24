@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { GoalCard } from "./GoalCard";
 import { GoalDetailSection } from "./GoalDetailSection";
 import { HealthSummaryStrip } from "./HealthSummaryStrip";
+import { HealStrip } from "./HealStrip";
+import { TokenPieChart } from "./TokenPieChart";
 import type { GoalSummary, HealthSummary, CronRun, AgentActivity } from "../types";
 import { useI18n } from "../i18n";
 
@@ -15,14 +17,21 @@ interface Props {
 
 export function SystemHealth({ goals, health, goalMetrics, cronRuns, teamHealth }: Props) {
   const { t } = useI18n();
+  const displayGoals = goals.filter((g) => g.id !== "self_improvement");
   return (
     <div className="space-y-5">
       {/* Overall Health Strip */}
-      <HealthSummaryStrip goals={goals} health={health} />
+      <HealthSummaryStrip goals={displayGoals} health={health} />
+
+      {/* Self-Improvement Strip + Token Pie */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+        <HealStrip goals={goals} />
+        <TokenPieChart goals={goals} goalMetrics={goalMetrics} />
+      </div>
 
       {/* Two-column: Card (left) + Detail (right) per goal */}
       <div className="space-y-4">
-        {goals.map((goal, i) => (
+        {displayGoals.map((goal, i) => (
           <div key={goal.id} className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-stretch">
             {/* Left: compact goal card */}
             <div>

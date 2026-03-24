@@ -85,12 +85,12 @@ const dict: Record<Locale, Record<string, string>> = {
     "Active Agent Count": "活跃 Agent 数",
     "Memory Discipline": "记忆纪律",
     "Total Memories": "总记忆数",
-    "Daily New Memories": "每日新增",
-    "Queue Throughput": "队列吞吐量",
-    "Vectordb Documents": "向量化文档",
+    "Daily New Memories": "今日新增记忆",
+    "Queue Throughput": "已安装技能",
+    "Vectordb Documents": "AI 自学会话",
     "Message Throughput": "消息吞吐量",
-    "Processing Success Rate": "处理成功率",
-    "Pending Ratio": "待处理比例",
+    "Processing Success Rate": "每会话消息数",
+    "Pending Ratio": "活跃对话 Agent 数",
     "Heartbeat Alive Rate": "心跳存活率",
     "Todo Completion": "待办完成率",
     "Reports Generated": "报告生成数",
@@ -101,6 +101,20 @@ const dict: Record<Locale, Record<string, string>> = {
     "Knowledge Growth": "知识增长",
     "Conversation Quality": "对话质量",
     "Heartbeat Status": "心跳状态",
+    "Infrastructure Health": "系统基础设施",
+    "Self Improvement": "自我改进",
+
+    // Self-improvement metrics
+    "Heal Score": "改进得分",
+    "Daily Tokens": "今日 Tokens",
+    "Memory Duplicates": "记忆重复",
+    "Long Sessions": "过长对话",
+    "Skills Missing Doc": "技能缺失",
+
+    // Infra metric names
+    "Vectordb Size Kb": "向量库体积(KB)",
+    "Gateway Alive": "网关存活",
+    "Session Storage Mb": "会话存储(MB)",
 
     // Metric definitions (cron)
     "Percentage of cron jobs that ran and completed without error":

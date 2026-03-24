@@ -24,16 +24,25 @@ OpenClaw 数据 → Python Pipelines → SQLite → Dashboard (localhost:3460)
 - OpenClaw 已安装且运行
 - 依赖：`click>=8.0`, `rich>=13.0`, `pyyaml>=6.0`
 
-## 安装
+## 安装位置
 
-```bash
-cd /mnt/d/project/openclaw/skills/oa-cli
-pip install -e .
+技能已安装在 OpenClaw 本地目录：
+- 技能代码: `C:\Users\Administrator\.openclaw\workspace\skills\oa-cli\`
+- 项目数据: `C:\Users\Administrator\.openclaw\workspace\oa-project\`
+- 配置文件: `C:\Users\Administrator\.openclaw\workspace\oa-project\config.yaml`
+
+## 执行方式（重要）
+
+OpenClaw gateway 可能没有 Python PATH，请使用包装脚本：
+
+```cmd
+C:\Users\Administrator\.openclaw\workspace\skills\oa-cli\scripts\oa-collect.cmd
+C:\Users\Administrator\.openclaw\workspace\skills\oa-cli\scripts\oa-report.cmd
 ```
 
-或仅安装依赖：
-```bash
-pip install click rich pyyaml
+或者用完整路径执行：
+```cmd
+"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\Scripts\oa.exe" collect --config "C:\Users\Administrator\.openclaw\workspace\oa-project\config.yaml"
 ```
 
 ## CLI 命令

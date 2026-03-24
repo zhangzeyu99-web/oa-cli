@@ -1,396 +1,184 @@
-# 📊 OA — Operational Analytics CLI
+# OA — Operational Analytics & Self-Improvement for OpenClaw
 
-**Operational analytics for your AI agent team — from the command line.**
+OA is an operational analytics CLI and self-improvement system for [OpenClaw](https://github.com/openclaw/openclaw) AI agent teams. It monitors your agents' health, tracks knowledge growth, analyzes model costs, and **automatically fixes safe issues** — all from the command line or a local Dashboard.
 
-OA gives you a live dashboard to track how your [OpenClaw](https://github.com/openclaw/openclaw) multi-agent system is actually performing. Cron reliability, agent activity, custom goals — all from data your system already generates. Zero new infrastructure required.
+## What It Does
 
-## Why OA?
+OA answers one question: **Is your AI agent team getting better?**
 
-You've got agents running cron jobs, writing to memory, processing tasks. But how do you know if things are actually working?
+- **7 monitoring goals** with 19 metrics, tracked daily
+- **9 self-improvement actions** that auto-diagnose and fix issues
+- **Local Dashboard** with Chinese/English toggle, trend charts, and token cost pie chart
+- **Feishu integration** for daily health reports and alerts
+- **OTel-compatible tracing** for every data pipeline
 
-- "Job ran" ≠ "job succeeded"
-- Agent sessions exist, but are agents actually active?
-- Problems get logged to memory files, but nobody's tracking the trends
+### Monitoring Goals
 
-OA reads the data OpenClaw already writes and turns it into real metrics — no new agents, no new integrations, no cloud services.
+| Goal | What It Tracks | Key Metrics |
+|------|---------------|-------------|
+| **Cron Reliability** | Are scheduled tasks succeeding? | success_rate (%) |
+| **Team Health** | How many agents are active today? | active_agent_count, memory_discipline |
+| **Knowledge Growth** | Is the system learning? | total_memories, daily_new, skills_count, autoskill_sessions |
+| **Conversation Quality** | How are conversations going? | message_throughput, avg_msgs_per_session, active_agents |
+| **Heartbeat Status** | Are agents alive and tasks on track? | heartbeat_alive_rate, todo_completion, cron_health |
+| **Infrastructure Health** | Is the system infrastructure OK? | vectordb_size_kb, gateway_alive, session_storage_mb |
+| **Self-Improvement** | How well is auto-healing working? | heal_score, daily_tokens, memory_duplicates, long_sessions |
 
-## Features
+### Self-Improvement Actions
 
-- 📊 **Built-in goals** — Cron Reliability and Team Health work instantly with zero config
-- 🎯 **Custom goals** — define your own metrics via simple Python pipelines
-- 🔭 **OTel-compatible tracing** — see exactly how data flows through your system
-- 🖥️ **Live dashboard** — React UI served locally, auto-refreshes
-- 🐍 **Zero dependencies** — pure Python core, reads from SQLite
-- 🤖 **Agent-friendly** — works as an OpenClaw skill for autonomous monitoring
+| Action | Safety Level | What It Does |
+|--------|-------------|-------------|
+| Session cleanup | **SAFE** (auto) | Deletes archived `.reset`/`.deleted`/`.bak` session files older than 7 days |
+| Cron self-heal | **SAFE** (auto) | Detects failed OA cron jobs, reports PATH/timeout issues |
+| Skill audit | **SAFE** (auto) | Flags skills missing SKILL.md, marks stale skills (>30 days) |
+| Knowledge tidy | **SAFE** (auto) | Cleans expired AutoSkill sessions when count exceeds 80 |
+| Path monitor | **SAFE** (auto) | Scans all config paths for broken references or non-root pointers |
+| Model cost analysis | **SAFE** (analysis) | Extracts token usage per model from cron JSONL, writes to Dashboard |
+| Conversation quality | **SAFE** (analysis) | Flags sessions with >100 messages, suggests /compress |
+| Memory optimization | **RISKY** (notify) | Scans for duplicate memories, sends report — never auto-deletes |
+| Gateway guard | **RISKY** (notify) | Detects gateway down, notifies owner via Feishu for restart |
 
-## Quick Start
+## Installation
 
-```bash
-pip install oa-cli
+### Prerequisites
 
-# Initialize — auto-detects your OpenClaw setup
-oa init
+- **Python 3.10+** with pip
+- **OpenClaw** installed at `~/.openclaw/`
+- **Node.js** (only if modifying Dashboard UI)
 
-# Collect metrics
-oa collect
-
-# Open dashboard
-oa serve
-```
-
-## How It Works (Step by Step)
-
-### Step 0: What You Already Have
-
-If you're running OpenClaw, your machine already has all the data we need:
-
-```
-~/.openclaw/
-├── cron/
-│   ├── jobs.json                ← cron job definitions
-│   └── runs/
-│       ├── my-daily-job.jsonl   ← run history per job
-│       └── data-collector.jsonl
-├── sessions/                     ← agent session data
-└── agents/                       ← agent configs
-```
-
-OA doesn't create new data — it reads what's already there.
-
-### Step 1: Install
+### Install
 
 ```bash
-pip install oa-cli
+# Clone
+git clone https://github.com/zhangzeyu99-web/oa-cli.git
+cd oa-cli
+
+# Install as editable package
+pip install -e .
+
+# Verify
+oa --version
+oa doctor
 ```
 
-Pure Python, zero runtime dependencies. No Node, no npm, no venv required. Takes ~5 seconds.
-
-### Step 2: Initialize
+### Initialize a project
 
 ```bash
-cd ~/my-workspace
-oa init
+# Auto-detect your OpenClaw setup
+oa init my-analytics --yes
+cd my-analytics
+
+# Or manually create config
+mkdir -p ~/.openclaw/workspace/oa-project/data
+# Copy templates/config.yaml to ~/.openclaw/workspace/oa-project/config.yaml
+# Edit: set openclaw_home and db_path
 ```
 
-The CLI auto-detects your OpenClaw installation:
+### OpenClaw Skill Installation
 
-```
-🔍 Scanning OpenClaw installation...
-
-  OpenClaw:  ✓ Found at ~/.openclaw
-  Agents:    ✓ 4 agents detected
-             • researcher (last active: 2h ago)
-             • writer (last active: 1d ago)
-             • reviewer (last active: 3h ago)
-             • publisher (last active: 5h ago)
-  Cron:      ✓ 6 jobs (5 enabled, 1 disabled)
-
-📊 Setting up built-in goals:
-  ✓ G1 · Cron Reliability — success rate across all cron jobs
-  ✓ G2 · Team Health — daily agent activity
-
-📋 Optional goal templates:
-  [1] Knowledge Sharing — shared learnings growth
-  [2] Custom goal
-  [0] Skip — just use built-ins
-
-  Your choice (0-2): 0
-
-✓ Created oa-project/
-  ├── config.yaml         ← your goals + agent list
-  ├── data/
-  │   └── monitor.db      ← SQLite database (schema ready)
-  └── pipelines/          ← data collection scripts
-
-Next steps:
-  oa collect    ← gather data now
-  oa serve      ← open dashboard
-```
-
-**What happens under the hood:**
-1. Reads `~/.openclaw/cron/jobs.json` → discovers your agents and cron jobs
-2. Scans `~/.openclaw/sessions/` → detects which agents exist and their activity
-3. Creates `config.yaml` with detected agents + built-in goals (thresholds auto-calculated)
-4. Creates SQLite database with schema ready to receive metrics
-5. Generates pipeline scripts with paths configured to your OpenClaw install
-
-### Step 3: Collect Data
+To install as an OpenClaw skill (so your agents can use it):
 
 ```bash
-oa collect
+# Copy to OpenClaw skills directory
+cp -r oa-cli ~/.openclaw/workspace/skills/oa-cli
+
+# Install Python package
+pip install -e ~/.openclaw/workspace/skills/oa-cli
+
+# Verify agent can access
+oa doctor
 ```
 
-```
-📊 Collecting data for 2026-03-15...
+## Usage
 
-  G1 · Cron Reliability
-    ✓ Read 6 cron jobs from ~/.openclaw/cron/jobs.json
-    ✓ Scanned 234 run entries from JSONL logs
-    ✓ Matched 18 slots today → 15 success, 2 failed, 1 missed
-    ✓ Success rate: 83.3%
-    🔭 Trace: a4f2c... (6 spans)
-
-  G2 · Team Health
-    ✓ Scanned 4 agents
-    ✓ 3 active today (researcher, reviewer, publisher)
-    ✓ Memory logged: 2/4 agents
-    🔭 Trace: b7e1d... (4 spans)
-
-✓ Results written to data/monitor.db
-```
-
-The built-in pipelines read directly from OpenClaw's files — the same `cron/runs/*.jsonl` and session directories that already exist. No new data collection agents needed.
-
-### Step 4: View Dashboard
+### Daily Commands
 
 ```bash
-oa serve
+# Collect all metrics
+oa collect --config path/to/config.yaml
+
+# View health in terminal
+oa status --config path/to/config.yaml
+
+# Auto-diagnose and fix (safe actions only)
+oa heal --config path/to/config.yaml --safe-only
+
+# Full heal (safe auto-execute, risky notify via Feishu)
+oa heal --config path/to/config.yaml
+
+# Dry run (diagnose without executing)
+oa heal --config path/to/config.yaml --dry-run
+
+# Send health report to Feishu
+oa report --config path/to/config.yaml
+
+# Start Dashboard
+oa serve --config path/to/config.yaml
+# Open http://localhost:3460
 ```
 
-```
-🖥️  Dashboard running at http://localhost:3460
+### Automated Pipeline (Recommended)
 
-  Goals:     2 tracked (Cron Reliability, Team Health)
-  Agents:    4 configured
-  Data:      1 day collected
+Set up three daily cron jobs in OpenClaw:
 
-  Press Ctrl+C to stop
-```
+| Time | Script | What It Does |
+|------|--------|-------------|
+| 07:00 | `scripts/oa-collect.cmd` | collect + heal (safe-only) |
+| 12:00 | `scripts/oa-collect.cmd` | collect + heal (safe-only) |
+| 19:00 | `scripts/oa-full-cycle.cmd` | collect + heal (full) + Feishu report |
 
-Opens your browser → live React dashboard with:
-- **Goal cards** with sparkline charts and health indicators
-- **Goal-specific charts** — stacked bar + line for Cron Reliability, DAA dual chart for Team Health
-- **Metrics definition panel** — click 📐 to see datasource, calculation, and purpose for each metric
-- **Mechanism view** — SVG flow charts showing how data moves through pipelines
-- **Click-to-expand trace details** — full execution trace with span tree and attributes
+Add to `~/.openclaw/cron/jobs.json`:
 
-All from real data, auto-refreshes every 30 seconds.
-
-### Step 5: Automate (Optional)
-
-```bash
-oa cron show
-```
-
-```
-📋 Suggested cron schedule for OpenClaw:
-
-  # Collect metrics 3x daily (paste into your OpenClaw config):
-  {
-    "name": "oa-collect",
-    "schedule": {"kind": "cron", "expr": "0 7,12,19 * * *"},
-    "payload": {"kind": "systemEvent", "text": "Run: oa collect"}
-  }
+```json
+{
+  "id": "oa-collect-0700",
+  "name": "OA Collect Morning",
+  "schedule": {"kind": "cron", "expr": "0 7 * * *", "tz": "Asia/Shanghai"},
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Run the OA collect script at ~/.openclaw/workspace/skills/oa-cli/scripts/oa-collect.cmd"
+  },
+  "enabled": true
+}
 ```
 
-Set it and forget it — metrics collected automatically.
+### Agent Instructions
 
-## Built-in Goals
-
-These work out of the box for any OpenClaw user. Zero configuration needed.
-
-### G1 · Cron Reliability
-
-Tracks whether your cron jobs are actually succeeding, not just running.
-
-| Metric | Description | Source |
-|--------|-------------|--------|
-| `success_rate` | % of scheduled slots that succeeded | `~/.openclaw/cron/runs/*.jsonl` |
-| `missed_triggers` | Jobs that never ran | `~/.openclaw/cron/jobs.json` + runs |
-
-**Data flow:**
-```
-OpenClaw Scheduler → JSONL run logs → oa pipeline → SQLite → Dashboard
-```
-
-### G2 · Team Health
-
-Tracks daily agent activity — are your agents actually working?
-
-| Metric | Description | Source |
-|--------|-------------|--------|
-| `active_agent_count` | Agents with sessions today | `~/.openclaw/sessions/` |
-| `memory_discipline` | % of agents that logged to memory | Agent memory files |
-
-**Data flow:**
-```
-Agent sessions + memory files → oa pipeline → SQLite → Dashboard
-```
-
-## Custom Goals
-
-Define your own metrics by writing a simple Python pipeline:
-
-```python
-# pipelines/content_quality.py
-from oa import Pipeline, Metric
-
-class ContentQuality(Pipeline):
-    goal_id = "content_quality"
-
-    def collect(self, date: str) -> list[Metric]:
-        # Your logic — read files, APIs, whatever
-        approved = count_approved_posts(date)
-        total = count_total_posts(date)
-        rate = approved / total * 100 if total else 0
-
-        return [Metric("approval_rate", rate, unit="%")]
-```
-
-Register it in `config.yaml`:
-
-```yaml
-goals:
-  # ... built-in goals auto-configured ...
-
-  - id: content_quality
-    name: "Content Quality"
-    pipeline: pipelines/content_quality.py
-    metrics:
-      - name: approval_rate
-        unit: "%"
-        healthy: 90
-        warning: 70
-```
-
-Run `oa collect` and your custom goal appears on the dashboard.
-
-## Using with AI Agents
-
-### As an OpenClaw Skill
-
-Install the `oa` skill and your agents can:
-- Run `oa collect` autonomously via cron
-- Check system health before taking actions
-- Detect issues and self-remediate
-
-### Agent Instructions Example
+Add this to your agent's instructions or HEARTBEAT.md so the agent knows how to use OA:
 
 ```markdown
-## Operational Monitoring
-- Run `oa collect` at 7:30 AM, 12:30 PM, 7:00 PM
-- If cron reliability drops below 80%, investigate and fix
-- Log all fixes to memory for trend analysis
+## OA Operational Analytics
+
+When asked about system health, monitoring, or self-improvement:
+
+1. Run: `oa collect --config ~/.openclaw/workspace/oa-project/config.yaml`
+2. Run: `oa heal --safe-only --config ~/.openclaw/workspace/oa-project/config.yaml`
+3. Run: `oa status --config ~/.openclaw/workspace/oa-project/config.yaml`
+
+For full reports: `oa report --config ~/.openclaw/workspace/oa-project/config.yaml`
+For Dashboard: `oa serve --config ~/.openclaw/workspace/oa-project/config.yaml`
+
+If `oa` command not found, use the wrapper scripts:
+- Collect: ~/.openclaw/workspace/skills/oa-cli/scripts/oa-collect.cmd
+- Report: ~/.openclaw/workspace/skills/oa-cli/scripts/oa-report.cmd
+- Full cycle: ~/.openclaw/workspace/skills/oa-cli/scripts/oa-full-cycle.cmd
 ```
 
-## Configuration
+## Dashboard
 
-The `config.yaml` is auto-generated by `init` and fully editable:
+The Dashboard is a pre-built React app served by `oa serve`. No Node.js required for end users.
 
-```yaml
-# Auto-generated by oa init
-openclaw_home: ~/.openclaw
+### Features
 
-agents:
-  - id: researcher
-    name: Researcher
-  - id: writer
-    name: Writer
-  - id: reviewer
-    name: Reviewer
-  - id: publisher
-    name: Publisher
+- **Chinese/English toggle** — click the flag icon in the top-right corner
+- **6 goal cards** with sparkline trend charts (Self-Improvement shown as a status strip)
+- **Token cost pie chart** — daily/weekly view with per-model breakdown
+- **Self-Improvement status bar** — heal score, tokens, duplicates, long sessions, missing skills
+- **Mechanism view** — SVG data flow diagrams for each pipeline
+- **30-second auto-refresh**
 
-goals:
-  - id: cron_reliability
-    builtin: true
-    metrics:
-      - name: success_rate
-        unit: "%"
-        healthy: 95
-        warning: 80
-
-  - id: team_health
-    builtin: true
-    metrics:
-      - name: active_agent_count
-        unit: count
-        healthy: 3
-        warning: 2
-```
-
-## CLI Reference
-
-| Command | Description |
-|---------|-------------|
-| `oa init` | Auto-detect OpenClaw setup, create project |
-| `oa collect` | Run all data pipelines |
-| `oa collect --goal G1` | Run a specific pipeline |
-| `oa serve` | Start dashboard on localhost:3460 |
-| `oa serve --port 8080` | Start dashboard on custom port |
-| `oa status` | Show current goal health (terminal) |
-| `oa cron show` | Show suggested cron schedule |
-| `oa doctor` | Check system dependencies |
-
-## Architecture
-
-```
-OpenClaw writes:                    OA reads:
-─────────────────                   ──────────────────────
-cron/jobs.json          ──────►     What jobs exist, their schedules
-cron/runs/*.jsonl       ──────►     Did each run succeed or fail?
-sessions/ directory     ──────►     Which agents were active today?
-agent memory files      ──────►     Did agents log their work?
-                                           │
-                                           ▼
-                                    Python Pipelines (zero-dep)
-                                           │
-                                           ▼
-                                    SQLite Database
-                                           │
-                                           ▼
-                                    Dashboard (localhost:3460)
-```
-
-No servers to maintain. No cloud services. Everything runs on your machine.
-
-## Requirements
-
-- **Python 3.10+** (that's it for the core)
-- **OpenClaw** installed and running
-- **A web browser** to view the dashboard
-
-## Tracing
-
-Every data collection run produces OTel-compatible traces stored in SQLite. View them in the dashboard's **Mechanism** tab — SVG flow charts with shaped nodes (cylinder for DB, pill for cron, rectangle for scripts) and click-to-expand trace details.
-
-```python
-# Built-in tracing — automatically wraps every pipeline
-from oa.tracing import Tracer
-
-tracer = Tracer(service="my_pipeline")
-with tracer.span("Data Collection") as span:
-    span.set_attribute("rows_processed", 42)
-    with tracer.span("DB Write") as child:
-        # nested spans for detailed flow tracking
-        ...
-```
-
-## Roadmap
-
-- [x] Pre-built React dashboard (static files bundled in pip package — no Node required)
-- [x] SVG flow chart trace visualization
-- [x] Goal-specific charts (stacked bar + line, dual axis, per-agent bars)
-- [x] Metrics definition panel
-- [x] GitHub Actions auto-publish via PyPI trusted publishing
-- [ ] `oa export` — export metrics to CSV/JSON
-- [ ] More built-in goal templates (knowledge sharing, issue tracking)
-- [ ] Code-splitting for dashboard bundle optimization
-- [ ] OTel SDK export (optional, for users with existing observability)
-- [ ] OpenClaw skill package for autonomous monitoring
-
-## Contributing
-
-```bash
-git clone https://github.com/Amyssjj/Agent_Exploration.git
-cd Agent_Exploration/CLIs/oa-cli
-pip install -e ".[dev]"
-pytest  # 57 tests
-```
-
-### Dashboard Development
-
-The dashboard is a React app pre-built via Vite. End users never need Node — but if you're modifying the UI:
+### Modifying the Dashboard
 
 ```bash
 cd dashboard-src
@@ -399,6 +187,154 @@ npm run dev      # Vite dev server with hot reload
 npm run build    # Build to ../src/oa/dashboard/
 ```
 
+Key files:
+- `src/App.tsx` — main layout, language toggle
+- `src/i18n.ts` — all Chinese/English translations
+- `src/components/GoalCard.tsx` — metric cards
+- `src/components/GoalDetailSection.tsx` — charts (Cron stacked bar, Team Health dual axis, default area)
+- `src/components/HealStrip.tsx` — self-improvement status bar
+- `src/components/TokenPieChart.tsx` — token cost pie chart
+- `src/components/MechanismView.tsx` — data flow diagrams
+
+## Configuration
+
+### config.yaml
+
+```yaml
+openclaw_home: ~/.openclaw
+db_path: data/monitor.db
+
+agents:
+  - id: main
+    name: Main Agent
+  - id: helper
+    name: Helper
+
+goals:
+  - id: cron_reliability
+    name: Cron Reliability
+    builtin: true
+    metrics:
+      - name: success_rate
+        unit: "%"
+        healthy: 95    # green if >= 95%
+        warning: 80    # yellow if >= 80%, red if below
+
+  # For "lower is better" metrics (e.g. duplicates):
+  - id: self_improvement
+    name: Self Improvement
+    builtin: true
+    metrics:
+      - name: memory_duplicates
+        unit: count
+        healthy: 10    # green if <= 10
+        warning: 50    # yellow if <= 50, red if above
+```
+
+**Threshold logic**: If `healthy >= warning`, metric is "higher is better". If `healthy < warning`, metric is "lower is better".
+
+### Feishu Integration
+
+OA reads Feishu bot credentials from `~/.openclaw/openclaw.json` automatically. The bot sends:
+- Daily health reports via `oa report`
+- Self-improvement reports via `oa heal --send-report`
+- No configuration needed if OpenClaw is already connected to Feishu.
+
+## Custom Pipelines
+
+Create your own metrics by subclassing `Pipeline`:
+
+```python
+from oa import Pipeline, Metric
+
+class MyPipeline(Pipeline):
+    goal_id = "my_goal"
+
+    def collect(self, date: str, config) -> list[Metric]:
+        # Your logic here
+        return [Metric("my_metric", 42, unit="count")]
+```
+
+Register in `cli.py`'s `builtin_pipelines` dict, add the goal to `config.yaml`, and run `oa collect`.
+
+## Architecture
+
+```
+~/.openclaw/                        OA reads from:
+├── cron/jobs.json          ──────► Job definitions + schedules
+├── cron/runs/*.jsonl       ──────► Per-run success/failure + token usage
+├── agents/*/sessions/      ──────► Session activity + message counts
+├── workspace/skills/       ──────► Skill inventory
+├── workspace/memory/       ──────► Knowledge files
+├── autoskill/              ──────► AutoSkill sessions
+├── data/vectordb/          ──────► OpenViking vector store
+└── openclaw.json           ──────► Path health + Feishu credentials
+                                           │
+                                    6 Python Pipelines
+                                           │
+                                    SQLite Database
+                                           │
+                            ┌───────────────┼────────────────┐
+                            │               │                │
+                     Dashboard:3460    oa status       oa report
+                     (React app)      (terminal)    (Feishu msg)
+                            │
+                     oa heal (9 actions)
+                            │
+                    ┌───────┴───────┐
+                    SAFE            RISKY
+                    (auto-fix)     (notify owner)
+```
+
+## Project Structure
+
+```
+oa-cli/
+├── src/oa/                     # Python core
+│   ├── cli.py                  # CLI entry (click)
+│   ├── heal.py                 # Self-improvement engine
+│   ├── server.py               # Dashboard HTTP server
+│   ├── feishu_reporter.py      # Feishu message sender
+│   ├── core/                   # Config, schema, scanner, tracing
+│   ├── pipelines/              # 7 data collection pipelines
+│   │   ├── cron_reliability.py
+│   │   ├── viking_activity.py  # Team Health (reads .openclaw/agents)
+│   │   ├── knowledge_growth.py
+│   │   ├── conversation_quality.py
+│   │   ├── heartbeat_bridge.py
+│   │   └── infra_health.py
+│   ├── actions/                # 9 self-improvement actions
+│   │   ├── session_cleanup.py
+│   │   ├── cron_heal.py
+│   │   ├── skill_audit.py
+│   │   ├── knowledge_tidy.py
+│   │   ├── path_monitor.py
+│   │   ├── gateway_guard.py
+│   │   ├── cost_analysis.py
+│   │   ├── conversation_quality_check.py
+│   │   └── memory_optimize.py
+│   └── dashboard/              # Pre-built React app (HTML+JS+CSS)
+├── dashboard-src/              # React source (TypeScript + Tailwind)
+├── scripts/                    # Windows batch wrappers for OpenClaw cron
+├── templates/                  # Config and custom pipeline templates
+├── tests/                      # Test suite
+├── SKILL.md                    # OpenClaw skill manifest
+├── pyproject.toml              # Python package config
+└── LICENSE                     # MIT
+```
+
+## Safety Model
+
+OA categorizes all actions into three levels:
+
+| Level | Auto-Execute | Examples |
+|-------|-------------|----------|
+| **SAFE** | Yes | Clean archived sessions, flag missing skills, analyze costs |
+| **RISKY** | No — Feishu notification first | Restart gateway, suggest memory cleanup |
+| **BLOCKED** | Never | Delete skills, modify openclaw.json, kill processes |
+
+The `oa heal` report clearly labels each action with `[auto]`, `[confirm]`, or `[blocked]`.
+
 ## License
 
-MIT — built by [MotusAI](https://github.com/Amyssjj/Agent_Exploration)
+MIT — Based on [Agent_Exploration/CLIs/oa-cli](https://github.com/Amyssjj/Agent_Exploration/tree/main/CLIs/oa-cli) by MotusAI.

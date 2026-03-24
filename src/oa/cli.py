@@ -133,6 +133,7 @@ def collect(goal: str | None, date: str | None, config_path: str):
     from .pipelines.knowledge_growth import KnowledgeGrowthPipeline
     from .pipelines.conversation_quality import ConversationQualityPipeline
     from .pipelines.heartbeat_bridge import HeartbeatBridgePipeline
+    from .pipelines.infra_health import InfraHealthPipeline
 
     builtin_pipelines = {
         "cron_reliability": CronReliabilityPipeline(),
@@ -140,6 +141,7 @@ def collect(goal: str | None, date: str | None, config_path: str):
         "knowledge_growth": KnowledgeGrowthPipeline(),
         "conversation_quality": ConversationQualityPipeline(),
         "heartbeat_status": HeartbeatBridgePipeline(),
+        "infra_health": InfraHealthPipeline(),
     }
 
     for goal_config in config.goals:
@@ -156,10 +158,10 @@ def collect(goal: str | None, date: str | None, config_path: str):
 
         console.print(f"  [bright_magenta]{goal_config.name}[/]")
 
+        db = None
         try:
             metrics = pipeline.collect(date_str, config)
 
-            # Write metrics to goal_metrics table
             db = sqlite3.connect(str(config.db_path))
             db.execute("PRAGMA journal_mode=WAL")
             for m in metrics:
@@ -175,12 +177,83 @@ def collect(goal: str | None, date: str | None, config_path: str):
                 sep = " " if m.unit and not m.unit.startswith("%") else ""
                 console.print(f"    [green]✓[/] {m.name}: {m.value}{sep}{m.unit}")
             db.commit()
-            db.close()
 
         except Exception as e:
             console.print(f"    [red]✗[/] Error: {e}")
+        finally:
+            if db:
+                db.close()
 
     console.print(f"\n[green]✓[/] Results written to {config.db_path}")
+
+
+# ━━━ oa heal ━━━
+
+@main.command()
+@click.option("--config", "-c", "config_path", default="config.yaml", help="Config file path")
+@click.option("--dry-run", is_flag=True, help="Diagnose only, don't execute actions")
+@click.option("--safe-only", is_flag=True, help="Only execute safe actions, skip risky")
+@click.option("--send-report", is_flag=True, help="Send report to Feishu after heal")
+def heal(config_path: str, dry_run: bool, safe_only: bool, send_report: bool):
+    """Diagnose anomalies and auto-fix safe issues."""
+    from .heal import run_heal
+
+    config_file = Path(config_path)
+    if not config_file.exists():
+        console.print("[red]Error:[/] config.yaml not found.")
+        raise SystemExit(1)
+
+    mode = "DRY RUN" if dry_run else ("SAFE ONLY" if safe_only else "FULL")
+    console.print(f"\n[bright_magenta]🔧 OA Self-Improvement ({mode})...[/]\n")
+
+    report = run_heal(config_path=str(config_file), dry_run=dry_run, safe_only=safe_only)
+
+    executed = [a for a in report.actions if a.executed]
+    risky = [a for a in report.actions if a.level == "risky" and not a.executed]
+    suggestions = [a for a in report.actions if not a.executed and a.level == "safe"]
+
+    if executed:
+        console.print(f"  [green]Executed ({len(executed)}):[/]")
+        for a in executed:
+            freed = f" [dim]({a.bytes_freed // 1024 // 1024}MB freed)[/]" if a.bytes_freed > 0 else ""
+            console.print(f"    [green]v[/] {a.title}{freed}")
+            if a.result:
+                console.print(f"      [dim]{a.result}[/]")
+
+    if risky:
+        console.print(f"\n  [yellow]Needs Confirmation ({len(risky)}):[/]")
+        for a in risky:
+            console.print(f"    [yellow]![/] {a.title}")
+            console.print(f"      [dim]{a.detail}[/]")
+
+    if suggestions:
+        console.print(f"\n  [blue]Suggestions ({len(suggestions)}):[/]")
+        for a in suggestions:
+            console.print(f"    [blue]-[/] {a.title}")
+
+    if report.suggestions:
+        console.print(f"\n  [blue]Improvement Tips:[/]")
+        for s in report.suggestions:
+            console.print(f"    [blue]-[/] {s}")
+
+    total_freed = sum(a.bytes_freed for a in executed)
+    if total_freed > 0:
+        console.print(f"\n  [green]Storage freed: {total_freed // 1024 // 1024}MB[/]")
+
+    if send_report:
+        import yaml
+        with open(config_file, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        from .feishu_reporter import _get_feishu_credentials, _get_token, _send_message
+        creds = _get_feishu_credentials()
+        if creds:
+            token = _get_token(creds[0], creds[1])
+            _send_message(token, creds[2], report.summary_text())
+            console.print(f"\n  [green]v[/] Report sent to Feishu")
+        else:
+            console.print(f"\n  [red]x[/] Feishu credentials not found")
+
+    console.print()
 
 
 # ━━━ oa serve ━━━

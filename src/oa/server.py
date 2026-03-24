@@ -99,7 +99,7 @@ class OAHandler(SimpleHTTPRequestHandler):
             return OAHandler._config_cache
         config_path = Path(OAHandler.config_path)
         if config_path.exists():
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 OAHandler._config_cache = yaml.safe_load(f) or {}
         else:
             OAHandler._config_cache = {}
@@ -107,8 +107,11 @@ class OAHandler(SimpleHTTPRequestHandler):
 
     def _get_db(self) -> sqlite3.Connection:
         config = self._get_config()
-        db_path = config.get("db_path", "data/monitor.db")
-        db = sqlite3.connect(db_path)
+        raw_db = config.get("db_path", "data/monitor.db")
+        db_path = Path(raw_db)
+        if not db_path.is_absolute():
+            db_path = Path(OAHandler.config_path).parent / raw_db
+        db = sqlite3.connect(str(db_path))
         db.row_factory = sqlite3.Row
         return db
 
@@ -203,7 +206,10 @@ class OAHandler(SimpleHTTPRequestHandler):
             goal = r["goal"]
             if goal not in grouped:
                 grouped[goal] = []
-            breakdown = json.loads(r["breakdown"]) if r["breakdown"] else None
+            try:
+                breakdown = json.loads(r["breakdown"]) if r["breakdown"] else None
+            except (json.JSONDecodeError, TypeError):
+                breakdown = None
             grouped[goal].append({
                 "date": r["date"], "metric": r["metric"],
                 "value": r["value"], "unit": r["unit"],
@@ -329,11 +335,11 @@ def serve(port: int = 3460, config_path: str = "config.yaml", open_browser: bool
         raise
     url = f"http://localhost:{port}"
 
-    print(f"\n🖥️  OA Dashboard running at {url}\n")
+    print(f"\n  OA Dashboard running at {url}\n")
 
     config_file = Path(config_path)
     if config_file.exists():
-        with open(config_file) as f:
+        with open(config_file, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         goals = cfg.get("goals", [])
         agents = cfg.get("agents", [])
