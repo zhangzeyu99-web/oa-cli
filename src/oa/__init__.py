@@ -1,5 +1,5 @@
 """OA — Operational Analytics for your AI agent team."""
-__version__ = "0.1.4"
+__version__ = "0.3.0"
 
 from .pipelines.base import Metric, Pipeline
 

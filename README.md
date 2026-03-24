@@ -6,7 +6,7 @@ OA is an operational analytics CLI and self-improvement system for [OpenClaw](ht
 
 OA answers one question: **Is your AI agent team getting better?**
 
-- **7 monitoring goals** with 19 metrics, tracked daily
+- **7 monitoring goals** with 21 metrics, tracked daily
 - **9 self-improvement actions** that auto-diagnose and fix issues
 - **Local Dashboard** with Chinese/English toggle, trend charts, and token cost pie chart
 - **Feishu integration** for daily health reports and alerts
@@ -19,7 +19,7 @@ OA answers one question: **Is your AI agent team getting better?**
 | **Cron Reliability** | Are scheduled tasks succeeding? | success_rate (%) |
 | **Team Health** | How many agents are active today? | active_agent_count, memory_discipline |
 | **Knowledge Growth** | Is the system learning? | total_memories, daily_new, skills_count, autoskill_sessions |
-| **Conversation Quality** | How are conversations going? | message_throughput, avg_msgs_per_session, active_agents |
+| **Conversation Quality** | How are conversations going? | message_throughput, unanswered_sessions, failed_sessions |
 | **Heartbeat Status** | Are agents alive and tasks on track? | heartbeat_alive_rate, todo_completion, cron_health |
 | **Infrastructure Health** | Is the system infrastructure OK? | vectordb_size_kb, gateway_alive, session_storage_mb |
 | **Self-Improvement** | How well is auto-healing working? | heal_score, daily_tokens, memory_duplicates, long_sessions |
@@ -232,6 +232,8 @@ goals:
 ```
 
 **Threshold logic**: If `healthy >= warning`, metric is "higher is better". If `healthy < warning`, metric is "lower is better".
+
+**Agent aliases**: If an agent name in OpenClaw bindings maps to a different agentId (e.g. `bot-xiaoxia` → `agentId: main`), configure only the real agent in `agents` list. OA automatically excludes alias directories from activity scanning.
 
 ### Feishu Integration
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oa-cli"
-version = "0.1.4"
+version = "0.3.0"
 description = "Operational analytics for your AI agent team"
 readme = "README.md"
 license = "MIT"
