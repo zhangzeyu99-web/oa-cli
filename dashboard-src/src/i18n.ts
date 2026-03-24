@@ -91,6 +91,8 @@ const dict: Record<Locale, Record<string, string>> = {
     "Message Throughput": "消息吞吐量",
     "Processing Success Rate": "每会话消息数",
     "Pending Ratio": "活跃对话 Agent 数",
+    "Unanswered Sessions": "无回复会话",
+    "Failed Sessions": "失败会话",
     "Heartbeat Alive Rate": "心跳存活率",
     "Todo Completion": "待办完成率",
     "Reports Generated": "报告生成数",

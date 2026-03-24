@@ -77,6 +77,14 @@ goals:
         unit: count
         healthy: 2
         warning: 1
+      - name: unanswered_sessions
+        unit: count
+        healthy: 2         # lower is better
+        warning: 5
+      - name: failed_sessions
+        unit: count
+        healthy: 0          # lower is better
+        warning: 3
 
   # G5: Heartbeat Status (built-in)
   - id: heartbeat_status
