@@ -117,7 +117,6 @@ def collect(goal: str | None, date: str | None, config_path: str):
     """Run data collection pipelines."""
     from .core.config import ProjectConfig
     from .pipelines.cron_reliability import CronReliabilityPipeline
-    from .pipelines.team_health import TeamHealthPipeline
 
     config_file = Path(config_path)
     if not config_file.exists():
