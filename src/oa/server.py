@@ -302,11 +302,20 @@ class OAHandler(SimpleHTTPRequestHandler):
 def _health_status(value: float | None, healthy: float, warning: float) -> str:
     if value is None:
         return "unknown"
-    if value >= healthy:
-        return "healthy"
-    if value >= warning:
-        return "warning"
-    return "critical"
+    if healthy >= warning:
+        # Higher is better
+        if value >= healthy:
+            return "healthy"
+        if value >= warning:
+            return "warning"
+        return "critical"
+    else:
+        # Lower is better
+        if value <= healthy:
+            return "healthy"
+        if value <= warning:
+            return "warning"
+        return "critical"
 
 
 def _get_last_collected(db: sqlite3.Connection) -> str | None:

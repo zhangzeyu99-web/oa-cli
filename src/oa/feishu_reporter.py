@@ -96,12 +96,22 @@ def build_health_report(db_path: Path, config_data: dict, date: str) -> str:
                 healthy = m_cfg.get("healthy", 0)
                 warning = m_cfg.get("warning", 0)
 
-                if value >= healthy:
-                    icon, status = "🟢", "健康"
-                elif value >= warning:
-                    icon, status = "🟡", "警告"
+                if healthy >= warning:
+                    # Higher is better (e.g. success_rate: healthy=95, warning=80)
+                    if value >= healthy:
+                        icon, status = "🟢", "健康"
+                    elif value >= warning:
+                        icon, status = "🟡", "警告"
+                    else:
+                        icon, status = "🔴", "危险"
                 else:
-                    icon, status = "🔴", "危险"
+                    # Lower is better (e.g. duplicates: healthy=10, warning=50)
+                    if value <= healthy:
+                        icon, status = "🟢", "健康"
+                    elif value <= warning:
+                        icon, status = "🟡", "警告"
+                    else:
+                        icon, status = "🔴", "危险"
 
                 all_statuses.append(status)
                 sep = " " if unit and not unit.startswith("%") else ""
@@ -110,7 +120,8 @@ def build_health_report(db_path: Path, config_data: dict, date: str) -> str:
                 lines.append(f"  ⚪ {metric_name}: 无数据")
                 all_statuses.append("无数据")
 
-    # Agent activity
+    # Agent activity — only show agents from config, exclude aliases
+    config_agents = [a.get("id") for a in config_data.get("agents", [])]
     agents = db.execute(
         "SELECT agent_id, session_count, memory_logged FROM daily_agent_activity WHERE date=?",
         (date,),
@@ -118,6 +129,8 @@ def build_health_report(db_path: Path, config_data: dict, date: str) -> str:
     if agents:
         lines.append("\n👥 Agent 活跃度")
         for a in agents:
+            if config_agents and a["agent_id"] not in config_agents:
+                continue
             icon = "✅" if a["session_count"] > 0 else "⬜"
             mem = "📝" if a["memory_logged"] else "  "
             lines.append(f"  {icon} {a['agent_id']} {mem}")

@@ -448,13 +448,23 @@ def cron_show():
 # ━━━ Helpers ━━━
 
 def _health_status(value: float, healthy: float, warning: float) -> str:
-    """Return colored health status string."""
-    if value >= healthy:
-        return "[green]● healthy[/]"
-    elif value >= warning:
-        return "[yellow]● warning[/]"
+    """Return colored health status string. Supports both directions."""
+    if healthy >= warning:
+        # Higher is better
+        if value >= healthy:
+            return "[green]● healthy[/]"
+        elif value >= warning:
+            return "[yellow]● warning[/]"
+        else:
+            return "[red]● critical[/]"
     else:
-        return "[red]● critical[/]"
+        # Lower is better
+        if value <= healthy:
+            return "[green]● healthy[/]"
+        elif value <= warning:
+            return "[yellow]● warning[/]"
+        else:
+            return "[red]● critical[/]"
 
 
 def _goal_description(goal_id: str) -> str:
