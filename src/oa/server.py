@@ -327,10 +327,14 @@ def serve(port: int = 3460, config_path: str = "config.yaml", open_browser: bool
     try:
         server = HTTPServer(("127.0.0.1", port), OAHandler)
     except OSError as e:
-        if "Address already in use" in str(e):
+        if "already in use" in str(e).lower() or "Only one usage" in str(e):
+            import sys
             print(f"Error: Port {port} is already in use.")
             print(f"  Try: oa serve --port {port + 1}")
-            print(f"  Or:  lsof -i :{port} | grep LISTEN  (to find the process)")
+            if sys.platform == "win32":
+                print(f"  Or:  netstat -ano | findstr :{port}")
+            else:
+                print(f"  Or:  lsof -i :{port} | grep LISTEN")
             return
         raise
     url = f"http://localhost:{port}"

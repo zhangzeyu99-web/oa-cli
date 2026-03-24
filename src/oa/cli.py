@@ -216,7 +216,7 @@ def heal(config_path: str, dry_run: bool, safe_only: bool, send_report: bool):
         console.print(f"  [green]Executed ({len(executed)}):[/]")
         for a in executed:
             freed = f" [dim]({a.bytes_freed // 1024 // 1024}MB freed)[/]" if a.bytes_freed > 0 else ""
-            console.print(f"    [green]v[/] {a.title}{freed}")
+            console.print(f"    [green]✓[/] {a.title}{freed}")
             if a.result:
                 console.print(f"      [dim]{a.result}[/]")
 
@@ -249,7 +249,7 @@ def heal(config_path: str, dry_run: bool, safe_only: bool, send_report: bool):
         if creds:
             token = _get_token(creds[0], creds[1])
             _send_message(token, creds[2], report.summary_text())
-            console.print(f"\n  [green]v[/] Report sent to Feishu")
+            console.print(f"\n  [green]✓[/] Report sent to Feishu")
         else:
             console.print(f"\n  [red]x[/] Feishu credentials not found")
 

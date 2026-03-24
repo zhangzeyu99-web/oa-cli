@@ -252,15 +252,13 @@ def _write_heal_metrics(db_path: Path, date: str, report: HealReport, oc_home: P
             m = re.search(r"(\d[\d,]*)\s*tokens", cost_action.title)
             total_tokens = int(m.group(1).replace(",", "")) if m else 0
             model_breakdown = {}
-        upsert("self_improvement", "daily_tokens", total_tokens)
-        if model_breakdown:
-            db.execute(
-                """INSERT INTO goal_metrics (date, goal, metric, value, unit, breakdown)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(date, goal, metric) DO UPDATE SET value=excluded.value, breakdown=excluded.breakdown""",
-                (date, "self_improvement", "daily_tokens", total_tokens, "count",
-                 json.dumps(model_breakdown, ensure_ascii=False)),
-            )
+        breakdown_json = json.dumps(model_breakdown, ensure_ascii=False) if model_breakdown else None
+        db.execute(
+            """INSERT INTO goal_metrics (date, goal, metric, value, unit, breakdown)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(date, goal, metric) DO UPDATE SET value=excluded.value, breakdown=excluded.breakdown""",
+            (date, "self_improvement", "daily_tokens", total_tokens, "count", breakdown_json),
+        )
 
     # Memory duplicate count
     mem_action = next((a for a in report.actions if a.id == "memory_optimize"), None)
@@ -284,7 +282,7 @@ def _write_heal_metrics(db_path: Path, date: str, report: HealReport, oc_home: P
     missing = 0
     if skill_action and skill_action.result:
         import re
-        names = re.findall(r"'(\w+)'", skill_action.result)
+        names = re.findall(r"'([\w\-]+)'", skill_action.result)
         missing = len(names)
     upsert("self_improvement", "skills_missing_doc", missing)
 

@@ -15,7 +15,7 @@ function statusIcon(value: number | null, healthy: number, warning: number, inve
 }
 
 export function HealStrip({ goals }: Props) {
-  const { t, tMetric, locale } = useI18n();
+  const { locale } = useI18n();
   const si = goals.find((g) => g.id === "self_improvement");
   if (!si) return null;
 

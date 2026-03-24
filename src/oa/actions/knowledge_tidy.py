@@ -13,10 +13,13 @@ def check_knowledge(oc: Path, report: HealReport, dry_run: bool) -> None:
     if not as_dir.exists():
         return
 
-    sessions = sorted(
-        [d for d in as_dir.iterdir() if d.is_dir()],
-        key=lambda d: d.stat().st_mtime,
-    )
+    try:
+        sessions = sorted(
+            [d for d in as_dir.iterdir() if d.is_dir()],
+            key=lambda d: d.stat().st_mtime,
+        )
+    except OSError:
+        return
     total = len(sessions)
 
     if total <= MAX_EMBEDDED_SESSIONS:

@@ -39,12 +39,13 @@ def check_skills(oc: Path, report: HealReport, dry_run: bool) -> None:
     if not issues:
         return
 
+    has_issues = bool(missing_skill_md) or bool(stale_skills)
     action = Action(
         id="skill_audit", category="skill", level="safe",
         title=f"技能巡检: {total} 个技能, {len(issues)} 个问题",
         detail="\n".join(issues),
         metric="queue_throughput",
-        executed=True,
-        result=f"缺少 SKILL.md: {missing_skill_md}" if missing_skill_md else "无缺失",
+        executed=not has_issues,
+        result=f"缺少 SKILL.md: {missing_skill_md}" if missing_skill_md else "全部正常",
     )
     report.add(action)

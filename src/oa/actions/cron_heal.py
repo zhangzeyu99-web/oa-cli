@@ -1,4 +1,8 @@
-"""Cron self-healing — detect failed OA cron jobs and fix PATH/timeout issues."""
+"""Cron health check — detect failed/misconfigured OA cron jobs and report issues.
+
+Note: This action diagnoses problems but does NOT auto-modify jobs.json.
+Fixes are reported in the heal report for manual or agent action.
+"""
 from __future__ import annotations
 import json
 from pathlib import Path

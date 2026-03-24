@@ -7,7 +7,7 @@
 #
 set -euo pipefail
 
-OA_PROJECT="${OA_PROJECT:-/tmp/oa-test-project}"
+OA_PROJECT="${OA_PROJECT:-${HOME}/.openclaw/workspace/oa-project}"
 CONFIG="${OA_PROJECT}/config.yaml"
 SEND_REPORT=false
 

@@ -42,7 +42,10 @@ def _get_token(app_id: str, app_secret: str) -> str:
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
         data = json.loads(resp.read())
-    return data["tenant_access_token"]
+    token = data.get("tenant_access_token")
+    if not token:
+        raise RuntimeError(f"Feishu token error: code={data.get('code')}, msg={data.get('msg')}")
+    return token
 
 
 def _send_message(token: str, open_id: str, text: str) -> dict:

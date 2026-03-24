@@ -8,7 +8,7 @@ version = "0.1.4"
 description = "Operational analytics for your AI agent team"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "MotusAI", email = "hello@motusai.com" },
 ]
@@ -50,6 +50,7 @@ Issues = "https://github.com/Amyssjj/Agent_Exploration/issues"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# Note: code uses PEP 604 union types (X | Y), requires Python 3.10+
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
