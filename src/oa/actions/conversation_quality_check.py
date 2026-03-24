@@ -15,7 +15,8 @@ def analyze_conversations(oc: Path, metrics: dict, report: HealReport, date: str
 
     long_sessions: list[str] = []
     inactive_agents: list[str] = []
-    all_agents = [d.name for d in agents_dir.iterdir() if d.is_dir()]
+    AGENT_ALIASES = {"xiaoxia": "main"}
+    all_agents = [d.name for d in agents_dir.iterdir() if d.is_dir() and d.name not in AGENT_ALIASES]
 
     for agent in all_agents:
         sd = agents_dir / agent / "sessions"

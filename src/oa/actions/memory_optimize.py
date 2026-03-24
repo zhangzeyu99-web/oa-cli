@@ -1,5 +1,6 @@
-"""Memory optimization — scan for duplicates, stale entries, growth analysis."""
+"""Memory optimization — scan for truly duplicate content, stale entries."""
 from __future__ import annotations
+
 import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -11,9 +12,8 @@ def analyze_memory(oc: Path, report: HealReport) -> None:
     mem_dirs = [oc / "xiaoxia-memory-repo", oc / "workspace" / "memory"]
     total_files = 0
     total_bytes = 0
-    duplicates: list[str] = []
     stale: list[str] = []
-    hashes: dict[str, list[str]] = defaultdict(list)
+    content_hashes: dict[str, list[str]] = defaultdict(list)
     cutoff = datetime.now() - timedelta(days=14)
 
     for md in mem_dirs:
@@ -27,35 +27,70 @@ def analyze_memory(oc: Path, report: HealReport) -> None:
             total_bytes += sz
 
             try:
-                content = f.read_bytes()[:2000]
-                h = hashlib.md5(content).hexdigest()
-                hashes[h].append(str(f.relative_to(oc)))
-            except OSError:
+                content = f.read_text(encoding="utf-8").strip()
+                if len(content) < 20:
+                    try:
+                        mtime = datetime.fromtimestamp(f.stat().st_mtime)
+                        if mtime < cutoff:
+                            stale.append(str(f.relative_to(oc)))
+                    except OSError:
+                        pass
+                    continue
+
+                h = hashlib.sha256(content.encode()).hexdigest()
+                rel = str(f.relative_to(oc))
+                content_hashes[h].append(rel)
+            except (OSError, UnicodeDecodeError):
                 continue
 
-            try:
-                mtime = datetime.fromtimestamp(f.stat().st_mtime)
-                if mtime < cutoff and sz < 200:
-                    stale.append(str(f.relative_to(oc)))
-            except OSError:
-                continue
+    MIRROR_PAIRS = {"xiaoxia-memory-repo", "workspace"}
 
-    for h, paths in hashes.items():
-        if len(paths) > 1:
-            duplicates.append(f"可能重复 ({len(paths)} 份): {paths[0][:50]}")
+    true_duplicates: list[dict] = []
+    for h, paths in content_hashes.items():
+        if len(paths) <= 1:
+            continue
+        # Filter out cross-directory mirrors (same file in repo + workspace)
+        basenames = set()
+        unique_paths = []
+        for p in paths:
+            bn = p.split("\\")[-1].split("/")[-1]
+            if bn not in basenames:
+                basenames.add(bn)
+                unique_paths.append(p)
+
+        dirs = {p.split("\\")[0].split("/")[0] for p in paths}
+        is_mirror = len(unique_paths) <= 1 and len(dirs & MIRROR_PAIRS) >= 2
+        if is_mirror:
+            continue
+
+        if len(unique_paths) > 1:
+            true_duplicates.append({
+                "count": len(unique_paths),
+                "files": unique_paths[:3],
+                "preview": unique_paths[0][:60],
+            })
 
     issues = []
-    if duplicates:
-        issues.append(f"{len(duplicates)} 组可能重复的记忆文件")
-        report.suggestions.append(f"发现 {len(duplicates)} 组可能重复的记忆文件，建议人工审查后去重")
+    if true_duplicates:
+        issues.append(f"{len(true_duplicates)} 组内容完全相同的记忆文件")
+        dup_details = []
+        for d in sorted(true_duplicates, key=lambda x: x["count"], reverse=True)[:5]:
+            dup_details.append(f"  {d['count']} 份: {d['files'][0]}")
+        report.suggestions.append(
+            f"发现 {len(true_duplicates)} 组内容完全重复的记忆文件（sha256 相同），建议去重:\n" +
+            "\n".join(dup_details)
+        )
     if stale:
-        issues.append(f"{len(stale)} 个小且过旧的记忆文件 (>14天, <200字节)")
+        issues.append(f"{len(stale)} 个过小且过旧的记忆 (>14天, <20字符)")
+
+    detail = "\n".join(issues) if issues else f"记忆库健康: {total_files} 个文件, 无真正重复"
 
     action = Action(
-        id="memory_optimize", category="memory", level="risky" if duplicates else "safe",
-        title=f"记忆分析: {total_files} 个文件 ({total_bytes // 1024}KB)",
-        detail="\n".join(issues) if issues else f"记忆库健康: {total_files} 个文件, 无明显问题",
-        executed=not bool(duplicates),
-        result=f"分析完成, {len(duplicates)} 组重复, {len(stale)} 个可能过期" if issues else "无异常",
+        id="memory_optimize", category="memory",
+        level="risky" if true_duplicates else "safe",
+        title=f"记忆分析: {total_files} 个文件 ({total_bytes // 1024}KB), {len(true_duplicates)} 组真正重复",
+        detail=detail,
+        executed=not bool(true_duplicates),
+        result=f"{len(true_duplicates)} 组内容重复, {len(stale)} 个可能过期" if issues else "无异常",
     )
     report.add(action)
