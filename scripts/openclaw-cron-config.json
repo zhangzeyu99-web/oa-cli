@@ -1,0 +1,38 @@
+{
+  "_comment": "将此配置添加到 OpenClaw Cron 系统中，实现自动化采集",
+  "jobs": [
+    {
+      "name": "oa-collect-morning",
+      "schedule": {"kind": "cron", "expr": "0 7 * * *"},
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "请在 /tmp/oa-test-project 目录执行 `oa collect --config config.yaml`，然后执行 `oa report --config config.yaml` 将健康报告发送到飞书。报告完成后简要汇总结果。"
+      },
+      "delivery": {"mode": "announce"},
+      "enabled": true
+    },
+    {
+      "name": "oa-collect-noon",
+      "schedule": {"kind": "cron", "expr": "0 12 * * *"},
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "请在 /tmp/oa-test-project 目录执行 `oa collect --config config.yaml`，采集中午的运维数据并简要汇总。"
+      },
+      "delivery": {"mode": "announce"},
+      "enabled": true
+    },
+    {
+      "name": "oa-collect-evening",
+      "schedule": {"kind": "cron", "expr": "0 19 * * *"},
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "请在 /tmp/oa-test-project 目录执行 `oa collect --config config.yaml`，然后执行 `oa report --config config.yaml` 发送每日健康报告到飞书。这是今天最后一次采集，请详细汇报今日全天的变化趋势。"
+      },
+      "delivery": {"mode": "announce"},
+      "enabled": true
+    }
+  ]
+}
